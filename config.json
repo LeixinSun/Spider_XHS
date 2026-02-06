@@ -1,0 +1,25 @@
+{
+  "notes": {
+    "urls": [
+      
+    ],
+    "save_choice": "all",
+    "excel_name": "test"
+  },
+  "user": {
+    "url": "https://www.xiaohongshu.com/user/profile/5cc1792300000000120214b7?xsec_token=ABAUe9g-qIGjHzy33JJwaMdW-BJMDLlNClGfdVcJASSqI=&xsec_source=pc_note",
+    "save_choice": "all"
+  },
+  "search": {
+    "query": "榴莲",
+    "require_num": 0,
+    "sort_type_choice": 0,
+    "note_type": 0,
+    "note_time": 0,
+    "note_range": 0,
+    "pos_distance": 0,
+    "geo": null,
+    "save_choice": "all",
+    "excel_name": ""
+  }
+}

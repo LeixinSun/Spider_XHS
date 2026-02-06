@@ -1,6 +1,20 @@
+import json
 import os
+import time
 from loguru import logger
 from dotenv import load_dotenv
+
+_DEBUG_ENABLED = False
+
+
+def set_debug_enabled(enabled: bool):
+    global _DEBUG_ENABLED
+    _DEBUG_ENABLED = bool(enabled)
+
+
+def is_debug_enabled():
+    return _DEBUG_ENABLED
+
 
 def load_env():
     load_dotenv()
@@ -20,3 +34,19 @@ def init():
         'excel': excel_base_path,
     }
     return cookies_str, base_path
+
+
+def dump_debug_response(tag, payload):
+    if not _DEBUG_ENABLED:
+        return
+    try:
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../datas/debug_responses'))
+        if not os.path.exists(base_path):
+            os.makedirs(base_path)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        file_path = os.path.join(base_path, f'{tag}_{timestamp}.json')
+        with open(file_path, mode='w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=True)
+        logger.info(f'保存调试响应 {file_path}')
+    except Exception as e:
+        logger.warning(f'保存调试响应失败: {e}')

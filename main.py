@@ -1,8 +1,10 @@
+import argparse
 import json
 import os
+import sys
 from loguru import logger
 from apis.xhs_pc_apis import XHS_Apis
-from xhs_utils.common_util import init
+from xhs_utils.common_util import init, dump_debug_response, set_debug_enabled
 from xhs_utils.data_util import handle_note_info, download_note, save_to_xlsx
 
 
@@ -18,12 +20,19 @@ class Data_Spider():
         :return:
         """
         note_info = None
+        res_json = None
         try:
-            success, msg, note_info = self.xhs_apis.get_note_info(note_url, cookies_str, proxies)
+            success, msg, res_json = self.xhs_apis.get_note_info(note_url, cookies_str, proxies)
             if success:
-                note_info = note_info['data']['items'][0]
-                note_info['url'] = note_url
-                note_info = handle_note_info(note_info)
+                items = (res_json or {}).get('data', {}).get('items')
+                if not items:
+                    dump_debug_response('note_items_missing', res_json)
+                    success = False
+                    msg = 'missing items'
+                else:
+                    note_info = items[0]
+                    note_info['url'] = note_url
+                    note_info = handle_note_info(note_info)
         except Exception as e:
             success = False
             msg = e
@@ -118,6 +127,12 @@ if __name__ == '__main__':
         感谢star和follow
     """
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action='store_true', help='保存调试响应到 datas/debug_responses')
+    parser.add_argument('--config', default='config.json', help='任务配置文件路径（JSON）')
+    args = parser.parse_args()
+    set_debug_enabled(args.debug)
+
     cookies_str, base_path = init()
     data_spider = Data_Spider()
     """
@@ -126,27 +141,48 @@ if __name__ == '__main__':
     """
 
 
-    # 1 爬取列表的所有笔记信息 笔记链接 如下所示 注意此url会过期！
-    notes = [
-        r'https://www.xiaohongshu.com/explore/683fe17f0000000023017c6a?xsec_token=ABBr_cMzallQeLyKSRdPk9fwzA0torkbT_ubuQP1ayvKA=&xsec_source=pc_user',
-    ]
-    data_spider.spider_some_note(notes, cookies_str, base_path, 'all', 'test')
+    try:
+        with open(args.config, mode='r', encoding='utf-8') as f:
+            cfg = json.load(f)
+    except Exception as e:
+        logger.error(f'读取配置失败: {args.config} ({e})')
+        sys.exit(1)
 
-    # 2 爬取用户的所有笔记信息 用户链接 如下所示 注意此url会过期！
-    user_url = 'https://www.xiaohongshu.com/user/profile/64c3f392000000002b009e45?xsec_token=AB-GhAToFu07JwNk_AMICHnp7bSTjVz2beVIDBwSyPwvM=&xsec_source=pc_feed'
-    data_spider.spider_user_all_note(user_url, cookies_str, base_path, 'all')
+    notes_cfg = cfg.get('notes', {}) if isinstance(cfg, dict) else {}
+    notes = notes_cfg.get('urls') or []
+    if notes:
+        data_spider.spider_some_note(
+            notes,
+            cookies_str,
+            base_path,
+            notes_cfg.get('save_choice', 'all'),
+            notes_cfg.get('excel_name', 'test'),
+        )
 
-    # 3 搜索指定关键词的笔记
-    query = "榴莲"
-    query_num = 10
-    sort_type_choice = 0  # 0 综合排序, 1 最新, 2 最多点赞, 3 最多评论, 4 最多收藏
-    note_type = 0 # 0 不限, 1 视频笔记, 2 普通笔记
-    note_time = 0  # 0 不限, 1 一天内, 2 一周内天, 3 半年内
-    note_range = 0  # 0 不限, 1 已看过, 2 未看过, 3 已关注
-    pos_distance = 0  # 0 不限, 1 同城, 2 附近 指定这个1或2必须要指定 geo
-    # geo = {
-    #     # 经纬度
-    #     "latitude": 39.9725,
-    #     "longitude": 116.4207
-    # }
-    data_spider.spider_some_search_note(query, query_num, cookies_str, base_path, 'all', sort_type_choice, note_type, note_time, note_range, pos_distance, geo=None)
+    user_cfg = cfg.get('user', {}) if isinstance(cfg, dict) else {}
+    user_url = user_cfg.get('url')
+    if user_url:
+        data_spider.spider_user_all_note(
+            user_url,
+            cookies_str,
+            base_path,
+            user_cfg.get('save_choice', 'all'),
+        )
+
+    search_cfg = cfg.get('search', {}) if isinstance(cfg, dict) else {}
+    query = search_cfg.get('query')
+    if query:
+        data_spider.spider_some_search_note(
+            query,
+            search_cfg.get('require_num', 10),
+            cookies_str,
+            base_path,
+            search_cfg.get('save_choice', 'all'),
+            search_cfg.get('sort_type_choice', 0),
+            search_cfg.get('note_type', 0),
+            search_cfg.get('note_time', 0),
+            search_cfg.get('note_range', 0),
+            search_cfg.get('pos_distance', 0),
+            search_cfg.get('geo'),
+            search_cfg.get('excel_name', ''),
+        )

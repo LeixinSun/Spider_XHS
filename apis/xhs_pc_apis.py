@@ -5,6 +5,7 @@ import urllib
 import requests
 from xhs_utils.xhs_util import splice_str, generate_request_params, generate_x_b3_traceid, get_common_headers
 from loguru import logger
+from xhs_utils.common_util import dump_debug_response
 
 """
     获小红书的api
@@ -212,6 +213,9 @@ class XHS_Apis():
                 success, msg, res_json = self.get_user_note_info(user_id, cursor, cookies_str, xsec_token, xsec_source, proxies)
                 if not success:
                     raise Exception(msg)
+                if "data" not in res_json or "notes" not in res_json["data"]:
+                    dump_debug_response('user_notes_missing', res_json)
+                    raise Exception('missing notes')
                 notes = res_json["data"]["notes"]
                 if 'cursor' in res_json["data"]:
                     cursor = str(res_json["data"]["cursor"])
@@ -540,7 +544,8 @@ class XHS_Apis():
                 success, msg, res_json = self.search_note(query, cookies_str, page, sort_type_choice, note_type, note_time, note_range, pos_distance, geo, proxies)
                 if not success:
                     raise Exception(msg)
-                if "items" not in res_json["data"]:
+                if "data" not in res_json or "items" not in res_json["data"]:
+                    dump_debug_response('search_items_missing', res_json)
                     break
                 notes = res_json["data"]["items"]
                 note_list.extend(notes)
@@ -1012,7 +1017,6 @@ if __name__ == '__main__':
     note_url = r'https://www.xiaohongshu.com/explore/67d7c713000000000900e391?xsec_token=AB1ACxbo5cevHxV_bWibTmK8R1DDz0NnAW1PbFZLABXtE=&xsec_source=pc_user'
     success, msg, note_all_comment = xhs_apis.get_note_all_comment(note_url, cookies_str)
     logger.info(f'获取笔记评论结果 {json.dumps(note_all_comment, ensure_ascii=False)}: {success}, msg: {msg}')
-
 
 
 

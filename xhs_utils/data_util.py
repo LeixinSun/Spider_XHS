@@ -92,9 +92,30 @@ def handle_note_info(data):
         except:
             pass
     if note_type == '视频':
-        video_cover = image_list[0]
-        video_addr = 'https://sns-video-bd.xhscdn.com/' + data['note_card']['video']['consumer']['origin_video_key']
-        # success, msg, video_addr = XHS_Apis.get_note_no_water_video(note_id)
+        video_cover = image_list[0] if image_list else None
+        video_addr = None
+        video_info = data['note_card'].get('video') or {}
+        consumer = video_info.get('consumer') if isinstance(video_info, dict) else None
+        if isinstance(consumer, dict) and consumer.get('origin_video_key'):
+            video_addr = 'https://sns-video-bd.xhscdn.com/' + consumer['origin_video_key']
+        else:
+            media = video_info.get('media') if isinstance(video_info, dict) else None
+            stream = media.get('stream') if isinstance(media, dict) else None
+            if isinstance(stream, dict):
+                for codec in ('h264', 'h265', 'av1', 'h266'):
+                    variants = stream.get(codec)
+                    if isinstance(variants, list) and variants:
+                        best = max(
+                            variants,
+                            key=lambda x: (
+                                x.get('width') or 0,
+                                x.get('height') or 0,
+                                x.get('size') or 0,
+                            ),
+                        )
+                        if isinstance(best, dict) and best.get('master_url'):
+                            video_addr = best['master_url']
+                            break
     else:
         video_cover = None
         video_addr = None
@@ -244,6 +265,15 @@ def save_note_detail(note, path):
         f.write(f"上传时间: {note['upload_time']}\n")
         f.write(f"ip归属地: {note['ip_location']}\n")
 
+def save_note_simple(note, path):
+    with open(f'{path}/simple.txt', mode="w", encoding="utf-8") as f:
+        f.write(f"昵称: {note['nickname']}\n")
+        f.write(f"用户id: {note['user_id']}\n")
+        f.write(f"标题: {note['title']}\n")
+        f.write(f"描述: {note['desc']}\n")
+        f.write(f"标签: {note['tags']}\n")
+        f.write(f"上传时间: {note['upload_time']}\n")
+        f.write(f"ip归属地: {note['ip_location']}\n")
 
 
 @retry(tries=3, delay=1)
@@ -262,6 +292,7 @@ def download_note(note_info, path, save_choice):
         f.write(json.dumps(note_info) + '\n')
     note_type = note_info['note_type']
     save_note_detail(note_info, save_path)
+    save_note_simple(note_info, save_path)
     if note_type == '图集' and save_choice in ['media', 'media-image', 'all']:
         for img_index, img_url in enumerate(note_info['image_list']):
             download_media(save_path, f'image_{img_index}', img_url, 'image')
