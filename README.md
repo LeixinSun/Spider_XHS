@@ -35,7 +35,7 @@
 
 ## 🧭 改进（Progress）
 - 修复视频笔记解析在 `consumer` 缺失时失败的问题，兼容从 `media.stream` 取视频地址
-- 调试响应输出改为可选，运行时加 `--debug` 才会写入 `datas/debug_responses/`
+- 可选调试响应输出，运行时添加 `--debug` 参数会将原始response写入 `datas/debug_responses/`
 - 三个任务（notes/user/search）改为读取 `config.json`，支持 `--config` 指定配置
 - 笔记保存时新增 `simple.txt`，仅保留昵称、用户id、标题、描述、标签、上传时间、ip归属地
 
